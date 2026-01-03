@@ -1,0 +1,9 @@
+# Binaries
+bootstrap
+
+# Zip files
+*.zip
+function.zip
+
+# Build artifacts
+dist/
