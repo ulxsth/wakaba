@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -60,7 +61,10 @@ func Dispatcher(ctx context.Context, payload json.RawMessage) (interface{}, erro
 			return nil, err
 		}
 
+		log.Printf("DEBUG: Received WorkerRequest: %+v", workerReq)
+
 		if workerReq.Type == "command" {
+			log.Printf("DEBUG: Dispatching command: '%s'", workerReq.CommandName)
 			switch workerReq.CommandName {
 			case "summarize":
 				return nil, handler.ProcessSummarize(s, &workerReq)

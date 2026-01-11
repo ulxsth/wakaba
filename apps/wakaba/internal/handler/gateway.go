@@ -65,6 +65,7 @@ func HandleGateway(ctx context.Context, request events.APIGatewayProxyRequest, p
 	// コマンドの場合
 	if interaction.Type == discordgo.InteractionApplicationCommand {
 		data := interaction.ApplicationCommandData()
+		log.Printf("DEBUG: Gateway received command: '%s'", data.Name)
 		payload.Type = "command"
 		payload.CommandName = data.Name
 

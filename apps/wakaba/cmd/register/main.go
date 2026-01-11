@@ -17,6 +17,10 @@ func main() {
 	remove := flag.Bool("remove", false, "Remove all commands instead of registering")
 	flag.Parse()
 
+	if *guildID == "" {
+		*guildID = os.Getenv("GUILD_ID")
+	}
+
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
 		log.Fatal("DISCORD_BOT_TOKEN must be set")
