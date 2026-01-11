@@ -63,8 +63,9 @@ resource "aws_lambda_function" "app" {
 
   environment {
     variables = {
-      DISCORD_PUBLIC_KEY = var.discord_public_key
-      DISCORD_BOT_TOKEN  = var.discord_bot_token
+      DISCORD_PUBLIC_KEY  = var.discord_public_key
+      DISCORD_BOT_TOKEN   = var.discord_bot_token
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.todo.name
     }
   }
 }

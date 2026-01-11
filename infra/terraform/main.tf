@@ -12,8 +12,12 @@ terraform {
     }
   }
 
-  # Note: Backend should be configured for state storage (e.g., S3) in a real environment.
-  # For now, we use local state.
+  # Backend configured for S3
+  backend "s3" {
+    bucket = "wakaba-tfstate"
+    key    = "terraform.tfstate"
+    region = "ap-northeast-1"
+  }
 }
 
 provider "aws" {
@@ -29,5 +33,5 @@ variable "aws_region" {
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "wakaba"
+  default     = "wakaba-production"
 }

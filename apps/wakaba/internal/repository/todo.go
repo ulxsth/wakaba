@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -34,9 +35,20 @@ func NewTodoRepository(ctx context.Context) (*TodoRepository, error) {
 	}
 
 	return &TodoRepository{
-		client:    dynamodb.NewFromConfig(cfg),
-		tableName: "wakaba-todo",
+		client: dynamodb.NewFromConfig(cfg),
+		// Note: The table name should ideally be passed via environment variable or config.
+		// Since we changed Terraform to use "${var.project_name}-todo", and we plan to change project_name.
+		// For now, let's look for env var or default to "wakaba-production-todo" ?
+		// Better: use os.Getenv("DYNAMODB_TABLE_NAME")
+		tableName: getTableName(),
 	}, nil
+}
+
+func getTableName() string {
+	if t := os.Getenv("DYNAMODB_TABLE_NAME"); t != "" {
+		return t
+	}
+	return "wakaba-production-todo" // updated default
 }
 
 func (r *TodoRepository) GetTodoList(ctx context.Context, channelID string) (*TodoList, error) {
