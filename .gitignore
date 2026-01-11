@@ -7,3 +7,12 @@ function.zip
 
 # Build artifacts
 dist/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+unix_socket
+
