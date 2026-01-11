@@ -14,7 +14,7 @@ terraform {
 
   # Backend configured for S3
   backend "s3" {
-    bucket = "wakaba-tfstate"
+    bucket = "wakaba-tfstate-production"
     key    = "terraform.tfstate"
     region = "ap-northeast-1"
   }
