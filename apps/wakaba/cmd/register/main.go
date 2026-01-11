@@ -47,6 +47,30 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:        "list",
+			Description: "チャンネルごとのTODOリストを管理します",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+					Name:        "create",
+					Description: "TODOリストを作成します",
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+					Name:        "add",
+					Description: "TODOを追加します",
+					Options: []*discordgo.ApplicationCommandOption{
+						{
+							Type:        discordgo.ApplicationCommandOptionString,
+							Name:        "content",
+							Description: "追加するタスクの内容",
+							Required:    true,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	if *remove {
