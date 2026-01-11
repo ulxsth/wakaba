@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.53.6
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.87.0
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/joho/godotenv v1.5.1
 	golang.org/x/net v0.48.0
 )
 

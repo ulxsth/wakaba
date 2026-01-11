@@ -6,9 +6,13 @@ import (
 	"os"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists
+	_ = godotenv.Load()
+
 	guildID := flag.String("guild", "", "Guild ID to register commands to (leave empty for global)")
 	remove := flag.Bool("remove", false, "Remove all commands instead of registering")
 	flag.Parse()

@@ -16,3 +16,4 @@ dist/
 .terraform.lock.hcl
 unix_socket
 
+.env
