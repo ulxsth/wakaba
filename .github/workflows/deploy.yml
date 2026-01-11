@@ -74,3 +74,11 @@ jobs:
         if: github.ref == 'refs/heads/main'
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
+
+      - name: Register Discord Commands
+        if: github.ref == 'refs/heads/main'
+        working-directory: apps/wakaba
+        env:
+          DISCORD_APP_ID: ${{ secrets.DISCORD_APP_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: go run cmd/register/main.go
