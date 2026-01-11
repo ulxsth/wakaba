@@ -48,22 +48,13 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 		return sendFollowup(s, req, fmt.Sprintf("%s のリンクは見つかりませんでした。(検索数: %d件)", start.Format("2006/01/02"), result.MessageCount))
 	}
 
-	// Format Output
-	// New format:
-	// count: n
-	// ```
-	// Title
-	// URL
-	// ...
-	// ```
-
 	countHeader := fmt.Sprintf("count: %d\n", len(result.CapturedLinks))
 	var sb strings.Builder
 	sb.WriteString(countHeader)
 	sb.WriteString("```\n")
 
+	// with_title = True の場合は url のタイトルを取得して表示する
 	if req.WithTitle {
-		// Parallel fetching
 		type titleResult struct {
 			index int
 			title string
@@ -75,19 +66,12 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 			go func(i int, u string) {
 				t, err := util.FetchPageTitle(u)
 				if err != nil {
-					// Fallback to empty title or domain?
-					// Prompt asked for:
-					// title1
-					// url1
-					// If title missing, maybe just empty line or skip?
-					// Let's use empty string or "(no title)"
-					t = ""
+					t = "(no title)"
 				}
 				ch <- titleResult{index: i, title: t, url: u}
 			}(i, u)
 		}
 
-		// Collect results
 		results := make([]titleResult, len(result.CapturedLinks))
 		for i := 0; i < len(result.CapturedLinks); i++ {
 			r := <-ch
@@ -101,8 +85,8 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 			sb.WriteString(r.url + "\n\n")
 		}
 
+	// そうでない場合はurlのみ表示
 	} else {
-		// Just URLs
 		sb.WriteString(strings.Join(result.CapturedLinks, "\n"))
 		sb.WriteString("\n")
 	}
@@ -110,11 +94,9 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 	sb.WriteString("```")
 	content := sb.String()
 
-	// Discord message limit is 2000 chars. Simple split if needed, or truncation.
+	// 2000文字を超えた場合は省略
 	if len(content) > 2000 {
-		// Truncate and ensure we close the code block
-		// 1900 gives us enough buffer for the suffix
-		content = content[:1900] + "\n...(省略されました)\n```"
+		content = content[:1900] + "\n...(略)\n```"
 	}
 
 	return sendFollowup(s, req, content)
@@ -124,15 +106,10 @@ func sendError(s *discordgo.Session, req *SummaryRequest, msg string) error {
 	return sendFollowup(s, req, "エラー: "+msg)
 }
 
+// 処理結果を表示する（元のメッセージを更新する形で送信する）
 func sendFollowup(s *discordgo.Session, req *SummaryRequest, content string) error {
-	// WebhookEditWithToken is used for "Deferred" interaction responses to "EditOriginal".
-	// Or WebhookExecute for followup?
-	// If we deferred, we can use InteractioResponseEdit (which updates the "Loading..." message)
-	// OR FollowupMessageCreate.
-
-	// Use WebhookMessageEdit to update the original deferred message.
-	// The webhook ID is the Application ID, and the token is the Interaction Token.
-	// Message ID "@original" targets the initial response.
+	// WebhookMessageEdit は指定したメッセージを更新する
+	// messageId = @original は slash command に対する最初のレスポンス（ping-pong 時に表示される「考え中...」）を指す
 	_, err := s.WebhookMessageEdit(req.ApplicationID, req.InteractionToken, "@original", &discordgo.WebhookEdit{
 		Content: &content,
 	})
