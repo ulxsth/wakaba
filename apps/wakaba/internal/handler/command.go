@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -19,21 +20,22 @@ type SummaryRequest struct {
 	ApplicationID    string `json:"application_id"`
 
 	// 以下ユーザ入力のコマンド引数
-	DateArg          string `json:"date_arg"`
-	WithTitle        bool   `json:"with_title"`
+	DateArg   string `json:"date_arg"`
+	WithTitle bool   `json:"with_title"`
 }
 
 // リクエストに基づき、コマンドの本処理を実行する
-func ProcessCommand(req *SummaryRequest, botToken string) error {
-	// session 作成
-	s, err := discordgo.New("Bot " + botToken)
-	if err != nil {
-		return fmt.Errorf("error creating session: %w", err)
+func ProcessSummarize(s *discordgo.Session, req *WorkerRequest) error {
+	// Args map to struct
+	var args SummarizeArgs
+	// Marshaling round trip is a lazy way to map map[string]any to struct, but works
+	if argBytes, err := json.Marshal(req.CommandArgs); err == nil {
+		json.Unmarshal(argBytes, &args)
 	}
 
 	// 日付引数をパース
 	now := time.Now()
-	start, end, err := util.ParseDateInput(req.DateArg, now)
+	start, end, err := util.ParseDateInput(args.DateArg, now)
 	if err != nil {
 		return sendError(s, req, fmt.Sprintf("日付の形式が正しくありません: %v", err))
 	}
@@ -54,7 +56,7 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 	sb.WriteString("```\n")
 
 	// with_title = True の場合は url のタイトルを取得して表示する
-	if req.WithTitle {
+	if args.WithTitle {
 		type titleResult struct {
 			index int
 			title string
@@ -85,7 +87,7 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 			sb.WriteString(r.url + "\n\n")
 		}
 
-	// そうでない場合はurlのみ表示
+		// そうでない場合はurlのみ表示
 	} else {
 		sb.WriteString(strings.Join(result.CapturedLinks, "\n"))
 		sb.WriteString("\n")
@@ -102,12 +104,12 @@ func ProcessCommand(req *SummaryRequest, botToken string) error {
 	return sendFollowup(s, req, content)
 }
 
-func sendError(s *discordgo.Session, req *SummaryRequest, msg string) error {
+func sendError(s *discordgo.Session, req *WorkerRequest, msg string) error {
 	return sendFollowup(s, req, "エラー: "+msg)
 }
 
 // 処理結果を表示する（元のメッセージを更新する形で送信する）
-func sendFollowup(s *discordgo.Session, req *SummaryRequest, content string) error {
+func sendFollowup(s *discordgo.Session, req *WorkerRequest, content string) error {
 	// WebhookMessageEdit は指定したメッセージを更新する
 	// messageId = @original は slash command に対する最初のレスポンス（ping-pong 時に表示される「考え中...」）を指す
 	_, err := s.WebhookMessageEdit(req.ApplicationID, req.InteractionToken, "@original", &discordgo.WebhookEdit{

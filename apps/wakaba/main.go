@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/bwmarrin/discordgo"
 	"github.com/yotu/wakaba/internal/handler"
 )
 
@@ -16,7 +17,7 @@ func main() {
 }
 
 func Dispatcher(ctx context.Context, payload json.RawMessage) (interface{}, error) {
-	// Attempt to parse as API Gateway Request (V1 - REST API)
+	// 1. API Gateway Request (V1 - REST API)
 	var gwReq events.APIGatewayProxyRequest
 	if err := json.Unmarshal(payload, &gwReq); err == nil && gwReq.RequestContext.HTTPMethod != "" {
 		pubKey := os.Getenv("DISCORD_PUBLIC_KEY")
@@ -26,7 +27,7 @@ func Dispatcher(ctx context.Context, payload json.RawMessage) (interface{}, erro
 		return handler.HandleGateway(ctx, gwReq, pubKey)
 	}
 
-	// Attempt to parse as API Gateway Request (V2 - HTTP API)
+	// 2. API Gateway Request (V2 - HTTP API)
 	var gwV2Req events.APIGatewayV2HTTPRequest
 	if err := json.Unmarshal(payload, &gwV2Req); err == nil && gwV2Req.RequestContext.HTTP.Method != "" {
 		pubKey := os.Getenv("DISCORD_PUBLIC_KEY")
@@ -46,19 +47,34 @@ func Dispatcher(ctx context.Context, payload json.RawMessage) (interface{}, erro
 		return handler.HandleGateway(ctx, proxyReq, pubKey)
 	}
 
-	// Attempt to parse as Worker Request
-	var workerReq handler.SummaryRequest
+	// 3. Worker Request (Async invocation)
+	var workerReq handler.WorkerRequest
 	if err := json.Unmarshal(payload, &workerReq); err == nil && workerReq.InteractionID != "" {
 		token := os.Getenv("DISCORD_BOT_TOKEN")
 		if token == "" {
 			return nil, fmt.Errorf("DISCORD_BOT_TOKEN not set")
 		}
-		err := handler.ProcessCommand(&workerReq, token)
-		return nil, err
+
+		s, err := discordgo.New("Bot " + token)
+		if err != nil {
+			return nil, err
+		}
+
+		if workerReq.Type == "command" {
+			switch workerReq.CommandName {
+			case "summarize":
+				return nil, handler.ProcessSummarize(s, &workerReq)
+			case "list":
+				return nil, handler.ProcessTodoList(s, &workerReq)
+			default:
+				return nil, fmt.Errorf("unknown command: %s", workerReq.CommandName)
+			}
+		} else if workerReq.Type == "component" {
+			return nil, handler.ProcessTodoComponent(s, &workerReq)
+		}
+
+		return nil, fmt.Errorf("unknown worker request type: %s", workerReq.Type)
 	}
 
-	// Unknown event
-	// Log the payload for debugging? Be careful with secrets.
-	// fmt.Printf("Unknown payload: %s\n", string(payload))
 	return nil, fmt.Errorf("unknown event type")
 }

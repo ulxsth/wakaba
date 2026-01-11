@@ -54,37 +54,36 @@ func HandleGateway(ctx context.Context, request events.APIGatewayProxyRequest, p
 		})
 	}
 
-	// 本リクエストの場合は処理を呼び出す
-	if interaction.Type == discordgo.InteractionApplicationCommand {
-		payload := SummaryRequest{
-			InteractionID:    interaction.ID,
-			InteractionToken: interaction.Token,
-			ChannelID:        interaction.ChannelID,
-			ApplicationID:    interaction.AppID,
-		}
+	payload := WorkerRequest{
+		InteractionID:    interaction.ID,
+		InteractionToken: interaction.Token,
+		ChannelID:        interaction.ChannelID,
+		ApplicationID:    interaction.AppID,
+		GuildID:          interaction.GuildID,
+	}
 
-		// Parse options
+	// コマンドの場合
+	if interaction.Type == discordgo.InteractionApplicationCommand {
 		data := interaction.ApplicationCommandData()
+		payload.Type = "command"
+		payload.CommandName = data.Name
+
+		args := make(map[string]any)
 		for _, opt := range data.Options {
-			switch opt.Name {
-			case "date":
-				payload.DateArg = opt.StringValue()
-			case "with_title":
-				payload.WithTitle = opt.BoolValue()
+			switch opt.Type {
+			case discordgo.ApplicationCommandOptionSubCommand:
+				args["sub_command"] = opt.Name
+				for _, subOpt := range opt.Options {
+					args[subOpt.Name] = subOpt.Value
+				}
+			default:
+				args[opt.Name] = opt.Value
 			}
 		}
+		payload.CommandArgs = args
 
-		// discord は 3秒以内にリクエストを返さないとタイムアウト判定になるので
-		// 非同期で本リクエストを呼び出す
 		if err := invokeSelfAsync(ctx, payload); err != nil {
-			log.Printf("Failed to invoke self: %v", err)
-			return jsonResponse(discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: fmt.Sprintf("処理の開始に失敗しました: %v", err),
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
+			return errorResponse(err)
 		}
 
 		// 本処理中なので、とりあえず待ってねレスポンスを返して終了
@@ -93,7 +92,34 @@ func HandleGateway(ctx context.Context, request events.APIGatewayProxyRequest, p
 		})
 	}
 
+	// コンポーネント（ボタン）の場合
+	if interaction.Type == discordgo.InteractionMessageComponent {
+		data := interaction.MessageComponentData()
+		payload.Type = "component"
+		payload.CustomID = data.CustomID
+
+		if err := invokeSelfAsync(ctx, payload); err != nil {
+			return errorResponse(err)
+		}
+
+		// ボタン押下時はレスポンスを更新する形でDeferredResponseを返す
+		return jsonResponse(discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredMessageUpdate,
+		})
+	}
+
 	return events.APIGatewayProxyResponse{StatusCode: 400, Body: "unknown interaction type"}, nil
+}
+
+func errorResponse(err error) (events.APIGatewayProxyResponse, error) {
+	log.Printf("Failed to invoke self: %v", err)
+	return jsonResponse(discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("処理の開始に失敗しました: %v", err),
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
 }
 
 // リクエストヘッダを解析し、Ed25519 検証器で検証する
@@ -147,7 +173,7 @@ func jsonResponse(body interface{}) (events.APIGatewayProxyResponse, error) {
 	}, nil
 }
 
-func invokeSelfAsync(ctx context.Context, payload SummaryRequest) error {
+func invokeSelfAsync(ctx context.Context, payload WorkerRequest) error {
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
