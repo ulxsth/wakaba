@@ -37,7 +37,7 @@ func ProcessSummarize(s *discordgo.Session, req *WorkerRequest) error {
 	now := time.Now()
 	start, end, err := util.ParseDateInput(args.DateArg, now)
 	if err != nil {
-		return sendError(s, req, fmt.Sprintf("日付の形式が正しくありません: %v", err))
+		return sendError(s, req, fmt.Sprintf("[V2] 日付の形式が正しくありません: %v", err))
 	}
 
 	// 該当する日付のメッセージを取得
